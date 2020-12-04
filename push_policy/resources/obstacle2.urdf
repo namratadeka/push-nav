@@ -21,8 +21,8 @@
             </geometry>
         </collision> 
         <inertial> 
-            <mass value="3"/>
-            <inertia ixx="0.06625" ixy="0" ixz="0" iyy="0.066" iyz="0" izz="0.03125"/>
+            <mass value="1.5"/>
+            <inertia ixx="0.033" ixy="0" ixz="0" iyy="0.033" iyz="0" izz="0.0155"/>
         </inertial> 
     </link>
 </robot>
