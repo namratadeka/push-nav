@@ -1,5 +1,6 @@
 import os
 import gym
+import numpy as np
 from glob import glob
 import pybullet as p
 
@@ -11,10 +12,10 @@ class Obstacles:
 
         for i in range(4):
             for obs in obs_files:
-                x = (self.np_random.uniform(-2.5, -0.5) if self.np_random.randint(2) else
-                    self.np_random.uniform(0.5, 2.5))
-                y = (self.np_random.uniform(-2.5, -0.5) if self.np_random.randint(2) else
-                    self.np_random.uniform(0.5, 2.5))
+                r = self.np_random.uniform(0.7, 2.5)
+                theta = self.np_random.uniform(0, 2*np.pi)
+                x = r*np.cos(theta)
+                y = r*np.sin(theta)
 
                 p.loadURDF(fileName=obs,
                            basePosition=[x, y, 0],

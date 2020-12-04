@@ -50,8 +50,8 @@ class PushNavEnv(gym.Env):
         reward =+ self.visible_goal()
 
         # Done by running off boundaries
-        if (car_ob[0] >= 10 or car_ob[0] <= -10 or
-                car_ob[1] >= 10 or car_ob[1] <= -10):
+        if (car_ob[0] >= 5 or car_ob[0] <= -5 or
+                car_ob[1] >= 5 or car_ob[1] <= -5):
             reward = -10
             self.done = True
         # Done by reaching goal
@@ -74,10 +74,10 @@ class PushNavEnv(gym.Env):
         self.car = Car(self.client)
 
         # Set the goal to a random target
-        x = (self.np_random.uniform(5, 9) if self.np_random.randint(2) else
-             self.np_random.uniform(-5, -9))
-        y = (self.np_random.uniform(5, 9) if self.np_random.randint(2) else
-             self.np_random.uniform(-5, -9))
+        x = (self.np_random.uniform(2, 4) if self.np_random.randint(2) else
+             self.np_random.uniform(-2, -4))
+        y = (self.np_random.uniform(2, 4) if self.np_random.randint(2) else
+             self.np_random.uniform(-2, -4))
         self.goal = (x, y)
 
         # Visual element of the goal
@@ -97,7 +97,8 @@ class PushNavEnv(gym.Env):
         return np.array(car_ob + self.goal, dtype=np.float32), cam_ob
 
     def visible_goal(self):
-        return np.array(self.car.segmask == self.goalID, dtype=np.int32).sum()
+        # return np.array(self.car.segmask == self.goalID, dtype=np.int32).sum()
+        return int(self.goalID in self.car.segmask)
 
     def render(self, mode='human'):
         if self.rendered_img is None:

@@ -19,7 +19,7 @@ def main(cfile, mode):
     agent = PPO(env, cfg['network'])
 
     # agent.load_model("agent.pth")
-    agent.learn(10000)
+    agent.learn(100000)
     # agent.save_model("agent.pth")
 
     # env = gym.make('PushNav-v0')
