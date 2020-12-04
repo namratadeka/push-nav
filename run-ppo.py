@@ -12,9 +12,9 @@ from ppo import PPO
 
 
 
-def main(cfile):
+def main(cfile, mode):
     cfg = yaml.load(open(cfile, "r"), Loader=yaml.FullLoader)
-    env = gym.make('PushNav-v0', mode='gui')
+    env = gym.make('PushNav-v0', mode=mode)
 
     agent = PPO(env, cfg['network'])
 
@@ -46,6 +46,13 @@ if __name__ == '__main__':
         help="name of config file"
     )
     parser.add_argument(
+        "-m",
+        "--mode",
+        type=str,
+        default="direct",
+        help="simulation mode (direct or gui)"
+    )
+    parser.add_argument(
         "--gpu",
         type=int,
         default=0,
@@ -54,4 +61,4 @@ if __name__ == '__main__':
     (args, unknown_args) = parser.parse_known_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     cfile = join('./push_policy/config', args.version)
-    main(cfile)
+    main(cfile, args.mode)
