@@ -55,7 +55,7 @@ class Car:
             jointIndices=self.drive_joints,
             controlMode=p.VELOCITY_CONTROL,
             targetVelocities=[self.joint_speed] * 4,
-            forces=[1.2] * 4,
+            forces=[2.4] * 4,
             physicsClientId=self.client)
 
     def get_camera_image(self):
