@@ -31,8 +31,7 @@ class Car:
         # Expects action to be two dimensional
         throttle, steering_angle = action
 
-        # Clip throttle and steering angle to reasonable values
-        throttle = min(max(throttle, -1), 1)
+        # Clip steering angle to reasonable values
         steering_angle = max(min(steering_angle, 0.6), -0.6)
 
         # Set the steering joint positions
