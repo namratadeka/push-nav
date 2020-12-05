@@ -36,6 +36,7 @@ network:
         out_channels: 512
         kernel_size: 3
         stride: 2
+      activation: ReLU
 
   actor_fc:
     - Linear:

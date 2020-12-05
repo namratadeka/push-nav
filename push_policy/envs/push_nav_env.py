@@ -33,25 +33,35 @@ class PushNavEnv(gym.Env):
         self.render_rot_matrix = None
         self.reset()
 
+    def dist_reward(self, car_ob):
+        # Compute reward as L2 change in distance to goal
+        dist_to_goal = math.sqrt(((car_ob[0] - self.goal[0]) ** 2 +
+                                  (car_ob[1] - self.goal[1]) ** 2))
+        reward = 10*max(self.prev_dist_to_goal - dist_to_goal, 0)
+        self.prev_dist_to_goal = dist_to_goal
+
+        return reward, dist_to_goal
+
+    def visibility_reward(self):
+        h, w = self.car.segmask.shape[:2]
+        viz_pixels = np.array(self.car.segmask == self.goalID, dtype=np.int32).sum()
+        return  viz_pixels/(h*w)
+        # return int(self.goalID in self.car.segmask)
+
     def step(self, action):
         # Feed action to the car and get observation of car's state
         self.car.apply_action(action)
         p.stepSimulation()
         car_ob, cam_ob = self.car.get_observation()
 
-        # Compute reward as L2 change in distance to goal
-        dist_to_goal = math.sqrt(((car_ob[0] - self.goal[0]) ** 2 +
-                                  (car_ob[1] - self.goal[1]) ** 2))
-        # reward = max(self.prev_dist_to_goal - dist_to_goal, 0)
-        reward = 1/dist_to_goal
-        self.prev_dist_to_goal = dist_to_goal
+        reward, dist_to_goal = self.dist_reward(car_ob)
 
-        reward =+ self.visible_goal()
+        reward =+ self.visibility_reward()
 
         # Done by running off boundaries
         if (car_ob[0] >= 5 or car_ob[0] <= -5 or
                 car_ob[1] >= 5 or car_ob[1] <= -5):
-            reward = -10
+            # reward = -10
             self.done = True
         # Done by reaching goal
         elif dist_to_goal < 1:
@@ -94,10 +104,6 @@ class PushNavEnv(gym.Env):
         self.prev_dist_to_goal = math.sqrt(((car_ob[0] - self.goal[0]) ** 2 +
                                            (car_ob[1] - self.goal[1]) ** 2))
         return np.array(car_ob + self.goal, dtype=np.float32), cam_ob
-
-    def visible_goal(self):
-        # return np.array(self.car.segmask == self.goalID, dtype=np.int32).sum()
-        return int(self.goalID in self.car.segmask)
 
     def render(self, mode='human'):
         if self.rendered_img is None:
