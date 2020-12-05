@@ -1,3 +1,4 @@
+import wandb
 import torch
 import numpy as np
 from torch.distributions import MultivariateNormal
@@ -5,7 +6,8 @@ from push_policy.models import Actor, Critic
 
 
 class PPO:
-    def __init__(self, env, network_cfg):
+    def __init__(self, env, network_cfg, use_wandb):
+        self.use_wandb = use_wandb
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._init_hyperparameters()
         
@@ -109,6 +111,8 @@ class PPO:
             batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens = self.rollout()
 
             print("[{}] Average episodic reward: {}".format(itr, batch_rtgs.mean().item()))
+            if self.use_wandb:
+                wandb.log({"Average episodic reward": batch_rtgs.mean().item()}, step=itr)
             itr += 1
             t_so_far += np.sum(batch_lens)
 
