@@ -45,6 +45,10 @@
             </geometry>
             <origin rpy="0 0 0" xyz="0 0 0"/>
         </collision>
+        <inertial>
+            <mass value="2"/>
+            <inertia ixx="0.033" ixy="0" ixz="0" iyy="0.033" iyz="0.0" izz="0.033"/>
+        </inertial> 
     </link>
     <joint name="base_to_head" type="fixed">
         <parent link="base_link"/>
