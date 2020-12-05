@@ -1,7 +1,7 @@
 network:
   state_fc:
     - Linear:
-        in_features: 11
+        in_features: 17
         out_features: 512
       activation: ReLU
     - Linear:

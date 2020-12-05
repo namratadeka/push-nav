@@ -11,11 +11,12 @@ class Car:
         self.id = p.loadURDF(fileName=f_name,
                               basePosition=[0, 0, 0.1],
                               physicsClientId=client)
-        p.enableJointForceTorqueSensor(self.id, 0, True)
 
         # Joint indices as found by p.getJointInfo()
-        self.steering_joints = [0, 2]
-        self.drive_joints = [1, 3, 4, 5]
+        self.head_joint = 0
+        p.enableJointForceTorqueSensor(self.id, self.head_joint, True)
+        self.steering_joints = [1, 3]
+        self.drive_joints = [2, 4, 5, 6]
         # Joint speed
         self.joint_speed = 0
         # Drag constants
@@ -90,18 +91,24 @@ class Car:
         # Concatenate position, orientation, velocity
         observation = (pos + ori + vel)
 
-        # Get contact forces of obstacles with the base link
-        collision_force = np.zeros(3)
+        # Get contact forces of obstacles with the base & head link
+        base_collision_force = np.zeros(3)
+        head_reaction_force = tuple(np.zeros(6).tolist())
+
         contact_points = p.getContactPoints(bodyA=self.id)
         for contact_info in contact_points:
             bodyB = contact_info[2]
             bodyA_index = contact_info[3]
-            if bodyB != self.id and bodyA_index == -1:
-                contact_force = contact_info[9]
-                contact_normal = contact_info[7]
-                collision_force += np.array(contact_normal) * contact_force
+            if bodyB != self.id:
+                if bodyA_index == -1:  # collision with base
+                    contact_force = contact_info[9]
+                    contact_normal = contact_info[7]
+                    base_collision_force += np.array(contact_normal) * contact_force
+                if bodyA_index == 0:   # collision with head
+                    head_reaction_force = p.getJointState(self.id, self.head_joint)[2]
 
-        observation += tuple(collision_force.tolist())
+        observation += tuple(base_collision_force.tolist())
+        observation += head_reaction_force
         rgbd = self.get_camera_image()
 
         return observation, rgbd

@@ -31,6 +31,27 @@
         </inertial> 
     </link> 
 
+    <!-- Head of the car -->
+    <link name="head">
+        <visual>
+            <geometry>
+                <box size="0.1 0.3 0.1"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+        <collision>
+            <geometry>
+                <box size="0.1 0.3 0.1"/>
+            </geometry>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+        </collision>
+    </link>
+    <joint name="base_to_head" type="fixed">
+        <parent link="base_link"/>
+        <child link="head"/>
+        <origin xyz="0.3 0 0"/>
+    </joint>
+
     <!-- Left Front Wheel -->
     <link name="left_front_wheel">
         <visual> 
