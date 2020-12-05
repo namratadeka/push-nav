@@ -19,17 +19,20 @@ class PPO:
 
         self.actor = Actor(network_cfg).to(self.device)
         self.critic = Critic(network_cfg).to(self.device)
+        if use_wandb:
+            wandb.watch(self.actor)
+            wandb.watch(self.critic)
 
-        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=self.lr)
-        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=self.lr)
+        self.actor_optim = torch.optim.SGD(self.actor.parameters(), lr=2.5e-6, momentum=0.9)
+        self.critic_optim = torch.optim.SGD(self.critic.parameters(), lr=0.01, momentum=0.9)
 
     def _init_hyperparameters(self):
-        self.timesteps_per_batch = 650
+        self.timesteps_per_batch = 700
         self.max_timesteps_per_episode = 300
         self.gamma = 0.95
-        self.n_updates_per_iteration = 5
+        self.n_updates_per_iteration = 10
         self.clip = 0.2
-        self.lr = 0.005
+        self.entropy_beta = 0.01
 
     def get_action(self, state, img):
         mean = self.actor(state, img).squeeze()
@@ -134,8 +137,12 @@ class PPO:
                 surr1 = ratios * A_k
                 surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
 
-                actor_loss = (-torch.min(surr1, surr2)).mean()
+                entropy = self.entropy_beta * (-(torch.exp(curr_log_probs) * curr_log_probs)).mean()
+
+                actor_loss = (-torch.min(surr1, surr2)).mean() - entropy
                 critic_loss = torch.nn.MSELoss()(V, batch_rtgs)
+
+                print(actor_loss.item(), critic_loss.item())
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
