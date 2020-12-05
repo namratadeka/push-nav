@@ -1,5 +1,6 @@
 import gym
 import math
+import time
 import numpy as np
 import pybullet as p
 import matplotlib.pyplot as plt
@@ -98,6 +99,7 @@ class PushNavEnv(gym.Env):
 
         # Reset obstacles
         Obstacles(self.client)
+        time.sleep(0.1)
 
         self.done = False
 
