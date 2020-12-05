@@ -32,7 +32,6 @@ class PushNavEnv(gym.Env):
         self.prev_dist_to_goal = None
         self.rendered_img = None
         self.render_rot_matrix = None
-        self.reset()
 
     def dist_reward(self, car_ob):
         # Compute reward as L2 change in distance to goal
