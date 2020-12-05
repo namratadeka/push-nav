@@ -42,7 +42,8 @@ class PushNavEnv(gym.Env):
         # Compute reward as L2 change in distance to goal
         dist_to_goal = math.sqrt(((car_ob[0] - self.goal[0]) ** 2 +
                                   (car_ob[1] - self.goal[1]) ** 2))
-        reward = max(self.prev_dist_to_goal - dist_to_goal, 0)
+        # reward = max(self.prev_dist_to_goal - dist_to_goal, 0)
+        reward = 1/dist_to_goal
         self.prev_dist_to_goal = dist_to_goal
 
         reward =+ self.visible_goal()
