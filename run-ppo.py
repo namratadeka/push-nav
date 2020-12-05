@@ -15,30 +15,28 @@ from ppo import PPO
 def init_wandb(cfile) -> None:
     wandb.init(project="push-nav", name=splitext(cfile)[0])
 
-def main(cfile, mode, use_wandb):
+def main(cfile, render_mode, use_wandb, mode, load_path=None):
     if use_wandb:
         init_wandb(cfile)
     cfg = yaml.load(open(cfile, "r"), Loader=yaml.FullLoader)
-    env = gym.make('PushNav-v0', mode=mode)
+    env = gym.make('PushNav-v0', mode=render_mode)
 
     agent = PPO(env, cfg['network'], use_wandb)
+    if load_path is not None:
+        agent.load_model(load_path)
 
-    # agent.load_model("agent.pth")
-    agent.learn(1000000)
-    # agent.save_model("agent.pth")
-
-    # env = gym.make('PushNav-v0')
-    # ob = env.reset()
-    # while True:
-    #     p.stepSimulation()
-        
-    # while True:
-    #     action = agent(ob)
-    #     ob, _, done, _ = env.step(action)
-    #     env.render()
-    #     if done:
-    #         ob = env.reset()
-    #         time.sleep(1/30)
+    if mode.__eq__('train'):
+        agent.learn(1000000)
+        agent.save_model("agent.pth")
+    else:
+        ob = env.reset()
+        while True:
+            state, cam = ob
+            action, _ = agent.get_action(state, cam)
+            ob, _, done, _ = env.step(action)
+            if done:
+                ob = env.reset()
+                time.sleep(1/30)
 
 
 if __name__ == '__main__':
@@ -51,8 +49,8 @@ if __name__ == '__main__':
         help="name of config file"
     )
     parser.add_argument(
-        "-m",
-        "--mode",
+        "-sm",
+        "--sim_mode",
         type=str,
         default="direct",
         help="simulation mode (direct or gui)"
@@ -69,7 +67,20 @@ if __name__ == '__main__':
         action="store_true",
         help="log to wandb"
     )
+    parser.add_argument(
+        "-m",
+        "--mode",
+        type=str,
+        default="train",
+        help="policy mode (train or test)"
+    )
+    parser.add_argument(
+        "--load",
+        type=str,
+        default=None,
+        help="path to saved model"
+    )
     (args, unknown_args) = parser.parse_known_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     cfile = join('./push_policy/config', args.version)
-    main(cfile, args.mode, args.wandb)
+    main(cfile, args.sim_mode, args.wandb, args.mode, args.load)

@@ -96,7 +96,7 @@ class PPO:
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(self.device)
 
         batch_rtgs = self.compute_rtgs(batch_rews)
-        
+
         return batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens
 
     def evaluate(self, state, img, acts):
@@ -172,3 +172,11 @@ class PPO:
             episodic_rewards.append(batch_rtgs[total_time_so_far:total_time_so_far+ep_len].sum().item())
         
         return np.mean(episodic_rewards)
+
+    def save_model(self):
+        # TODO
+        pass
+
+    def load_model(self, path):
+        # TODO
+        pass
