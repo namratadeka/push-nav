@@ -3,11 +3,11 @@ network:
     - Linear:
         in_features: 11
         out_features: 512
-      activation: Tanh
+      activation: ReLU
     - Linear:
         in_features: 512
         out_features: 1024
-      activation: Tanh
+      activation: ReLU
 
   cnn:
     - Conv2d:
@@ -15,13 +15,13 @@ network:
         out_channels: 64
         kernel_size: 3
         stride: 2
-      activation: Tanh
+      activation: ReLU
     - Conv2d:
         in_channels: 64
         out_channels: 128
         kernel_size: 3
         stride: 2
-      activation: Tanh
+      activation: ReLU
     - MaxPool2d:
         kernel_size: 2
         stride: 2
@@ -30,7 +30,7 @@ network:
         out_channels: 256
         kernel_size: 3
         stride: 2
-      activation: Tanh
+      activation: ReLU
     - Conv2d:
         in_channels: 256
         out_channels: 512
@@ -41,26 +41,24 @@ network:
     - Linear:
         in_features: 3072
         out_features: 1024
-      activation: Tanh
+      activation: ReLU
     - Linear:
         in_features: 1024
         out_features: 512
-      activation: Tanh
+      activation: ReLU
     - Linear:
         in_features: 512
         out_features: 2
-      activation: Tanh
 
   critic_fc:
     - Linear:
         in_features: 3072
         out_features: 1024
-      activation: Tanh
+      activation: ReLU
     - Linear:
         in_features: 1024
         out_features: 512
-      activation: Tanh
+      activation: ReLU
     - Linear:
         in_features: 512
         out_features: 1
-      activation: Tanh
