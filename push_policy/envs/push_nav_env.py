@@ -48,7 +48,7 @@ class PushNavEnv(gym.Env):
         return  2*viz_pixels/(h*w)
         # return int(self.goalID in self.car.segmask)
 
-    def push_reward(self):
+    def push_penalty(self):
         return -0.001 * self.car.head_force**0.5
 
     def step(self, action):
@@ -57,9 +57,12 @@ class PushNavEnv(gym.Env):
         p.stepSimulation()
         car_ob, cam_ob = self.car.get_observation()
 
-        reward, dist_to_goal = self.dist_reward(car_ob)
+        dist_rew, dist_to_goal = self.dist_reward(car_ob)
 
-        reward =+ self.visibility_reward() + self.push_reward()
+        vis_rew = self.visibility_reward() 
+        push_pen = self.push_penalty()
+
+        reward = dist_rew + vis_rew + push_pen
 
         # Done by running off boundaries
         if (car_ob[0] >= 5 or car_ob[0] <= -5 or
@@ -72,7 +75,7 @@ class PushNavEnv(gym.Env):
             reward = 50
 
         ob = (np.array(car_ob + self.goal, dtype=np.float32), cam_ob)
-        return ob, reward, self.done, dict()
+        return ob, reward, self.done, {"dist_reward":dist_rew, "visibility_reward": vis_rew, "push_penalty": push_pen}
 
     def seed(self, seed=None):
         self.np_random, seed = gym.utils.seeding.np_random(seed)

@@ -64,10 +64,12 @@ class PPO:
         batch_rews = []                     # batch rewards
         batch_rtgs = []                     # batch rewards-to-go
         batch_lens = []                     # episodic lengths in batch
+        batch_info = defaultdict(list)
 
         t = 0
         while t < self.timesteps_per_batch:
             ep_rews = []
+            ep_info = defaultdict(list)
             state_obs, img_obs = self.env.reset()
             done = False
 
@@ -77,18 +79,25 @@ class PPO:
                 batch_obs_img.append(img_obs)
 
                 action, log_prob = self.get_action(state_obs, img_obs)
-                obs, rew, done, _ = self.env.step(action)
+                obs, rew, done, info = self.env.step(action)
                 state_obs, img_obs = obs[0], obs[1]
 
                 ep_rews.append(rew)
                 batch_acts.append(action)
                 batch_log_probs.append(log_prob)
 
+                ep_info['dist_reward'].append(info['dist_reward'])
+                ep_info['visibility_reward'].append(info['visibility_reward'])
+                ep_info['push_penalty'].append(info['push_penalty'])
+
                 if done:
                     break
 
             batch_lens.append(ep_t + 1)
             batch_rews.append(ep_rews)
+            batch_info['dist'].append(ep_info['dist_reward'])
+            batch_info['vis'].append(ep_info['visibility_reward'])
+            batch_info['push'].append(ep_info['push_penalty'])
 
         batch_obs_state = torch.tensor(batch_obs_state, dtype=torch.float).to(self.device)
         batch_obs_img = torch.tensor(batch_obs_img, dtype=torch.float).to(self.device)
@@ -96,8 +105,10 @@ class PPO:
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(self.device)
 
         batch_rtgs = self.compute_rtgs(batch_rews)
+        for key in batch_info:
+            batch_info[key] = self.compute_rtgs(batch_info[key])
 
-        return batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens
+        return batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens, batch_info
 
     def evaluate(self, state, img, acts):
         V = self.critic(state, img).squeeze()
@@ -112,12 +123,16 @@ class PPO:
         t_so_far = 0
         itr = 0
         while t_so_far < total_timesteps:
-            batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens = self.rollout()
+            batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens, batch_info = self.rollout()
 
             avg_rew = self.avg_reward_per_episode(batch_rtgs, batch_lens)
+            avg_info = dict()
+            for key in batch_info:
+                avg_info[key] = self.avg_reward_per_episode(batch_info[key], batch_lens)
             print("[{}] Average episodic reward: {}".format(itr, avg_rew))
             if self.use_wandb:
                 wandb.log({"Average episodic reward": avg_rew}, step=itr)
+                wandb.log(avg_info, step=itr)
 
             t_so_far += np.sum(batch_lens)
 
