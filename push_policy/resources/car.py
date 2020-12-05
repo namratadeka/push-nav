@@ -107,6 +107,8 @@ class Car:
                 if bodyA_index == 0:   # collision with head
                     head_reaction_force = p.getJointState(self.id, self.head_joint)[2]
 
+        self.head_force = np.linalg.norm(np.array(head_reaction_force[:3]))
+
         observation += tuple(base_collision_force.tolist())
         observation += head_reaction_force
         rgbd = self.get_camera_image()
