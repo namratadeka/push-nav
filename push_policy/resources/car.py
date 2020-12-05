@@ -63,7 +63,8 @@ class Car:
                                                    nearVal=0.01, farVal=100)
         pos, ori = [list(l) for l in
                     p.getBasePositionAndOrientation(self.id, self.client)]
-        pos[2] = 0.2
+        pos[2] = 0.3
+        pos[0] += 0.25
 
         # Rotate camera direction
         rot_mat = np.array(p.getMatrixFromQuaternion(ori)).reshape(3, 3)
