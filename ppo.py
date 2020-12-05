@@ -1,6 +1,7 @@
 import wandb
 import torch
 import numpy as np
+from collections import defaultdict
 from torch.distributions import MultivariateNormal
 from push_policy.models import Actor, Critic
 
@@ -27,8 +28,8 @@ class PPO:
         self.critic_optim = torch.optim.SGD(self.critic.parameters(), lr=0.01, momentum=0.9)
 
     def _init_hyperparameters(self):
-        self.timesteps_per_batch = 700
-        self.max_timesteps_per_episode = 300
+        self.timesteps_per_batch = 500
+        self.max_timesteps_per_episode = 256
         self.gamma = 0.95
         self.n_updates_per_iteration = 10
         self.clip = 0.2
@@ -95,7 +96,7 @@ class PPO:
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(self.device)
 
         batch_rtgs = self.compute_rtgs(batch_rews)
-
+        
         return batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens
 
     def evaluate(self, state, img, acts):
@@ -117,7 +118,7 @@ class PPO:
             print("[{}] Average episodic reward: {}".format(itr, avg_rew))
             if self.use_wandb:
                 wandb.log({"Average episodic reward": avg_rew}, step=itr)
-            itr += 1
+
             t_so_far += np.sum(batch_lens)
 
             V, _ = self.evaluate(batch_obs_state, batch_obs_img, batch_acts)
@@ -128,6 +129,7 @@ class PPO:
             # normalize advantages
             A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
 
+            losses = defaultdict(list)
             for i in range(self.n_updates_per_iteration):
                 V, curr_log_probs = self.evaluate(batch_obs_state, batch_obs_img, batch_acts)
 
@@ -142,8 +144,6 @@ class PPO:
                 actor_loss = (-torch.min(surr1, surr2)).mean() - entropy
                 critic_loss = torch.nn.MSELoss()(V, batch_rtgs)
 
-                print(actor_loss.item(), critic_loss.item())
-
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
                 self.actor_optim.step()
@@ -151,6 +151,19 @@ class PPO:
                 self.critic_optim.zero_grad()
                 critic_loss.backward()
                 self.critic_optim.step()
+
+                if self.use_wandb:
+                    losses['actor_loss'].append(actor_loss.item())
+                    losses['critic_loss'].append(critic_loss.item())
+                    losses['entropy'].append(entropy.item())
+
+            if self.use_wandb:
+                for key in losses:
+                    losses[key] = np.mean(losses[key])
+                wandb.log(losses, step=itr)
+
+            itr += 1
+
 
     def avg_reward_per_episode(self, batch_rtgs, batch_lens):
         episodic_rewards = []
