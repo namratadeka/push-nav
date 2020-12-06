@@ -10,14 +10,14 @@
         <visual> 
             <geometry> 
                 <box size="10 10 0.01"/>
-                <origin rpy="0 0 0" xyz="-5 -5 -0.005"/>
+                <origin rpy="0 0 0" xyz="-5 -5 0"/>
             </geometry>
             <material name="grey"/>
         </visual>
         <collision> 
              <geometry> 
                 <box size="10 10 0.01"/>
-                <origin rpy="0 0 0" xyz="-5 -5 -0.005"/>
+                <origin rpy="0 0 0" xyz="-5 -5 0"/>
             </geometry>
         </collision> 
         <inertial> 
