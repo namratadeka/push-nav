@@ -20,5 +20,5 @@ class Obstacles:
                 y = r*np.sin(theta)
 
                 p.loadURDF(fileName=obs,
-                           basePosition=[x, y, 1],
+                           basePosition=[x, y, 0.5],
                            physicsClientId=client)

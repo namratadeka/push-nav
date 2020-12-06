@@ -82,9 +82,10 @@ class PushNavEnv(gym.Env):
 
     def reset(self):
         p.resetSimulation(self.client)
-        p.setGravity(0, 0, -10)
+        p.setGravity(0, 0, -9.8)
         # Reload the plane and car
         Plane(self.client)
+        p.stepSimulation()
         self.car = Car(self.client)
 
         # Set the goal to a random target
@@ -100,6 +101,7 @@ class PushNavEnv(gym.Env):
 
         # Reset obstacles
         Obstacles(self.client)
+        p.stepSimulation()
         time.sleep(0.1)
 
         self.done = False

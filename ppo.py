@@ -25,7 +25,7 @@ class PPO:
             wandb.watch(self.critic)
 
         self.actor_optim = torch.optim.SGD(self.actor.parameters(), lr=2.5e-6, momentum=0.9)
-        self.critic_optim = torch.optim.SGD(self.critic.parameters(), lr=0.01, momentum=0.9)
+        self.critic_optim = torch.optim.SGD(self.critic.parameters(), lr=1e-4, momentum=0.9)
 
     def _init_hyperparameters(self):
         self.timesteps_per_batch = 2000
