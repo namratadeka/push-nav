@@ -48,7 +48,7 @@ class PushNavEnv(gym.Env):
         return  viz_pixels/(h*w)
 
     def push_penalty(self):
-        return -self.car.head_force**0.3
+        return -1e-3 * self.car.head_force**0.1
 
     def step(self, action):
         # Feed action to the car and get observation of car's state
