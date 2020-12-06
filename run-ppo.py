@@ -33,7 +33,8 @@ def main(cfile, render_mode, use_wandb, mode, load_path=None):
         while True:
             state, cam = ob
             action, _ = agent.get_action(state, cam)
-            ob, _, done, _ = env.step(action)
+            for k in range(4):
+                ob, _, done, _ = env.step(action)
             if done:
                 ob = env.reset()
                 time.sleep(1/30)
