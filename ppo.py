@@ -31,7 +31,7 @@ class PPO:
         self.timesteps_per_batch = 2000
         self.max_timesteps_per_episode = 1000
         self.gamma = 0.95
-        self.n_updates_per_iteration = 5
+        self.epochs = 1
         self.clip = 0.2
         self.entropy_beta = 0.01
         self.minibatch_size = 256
@@ -80,7 +80,8 @@ class PPO:
                 batch_obs_img.append(img_obs)
 
                 action, log_prob = self.get_action(state_obs, img_obs)
-                obs, rew, done, info = self.env.step(action)
+                for k in range(4):
+                    obs, rew, done, info = self.env.step(action)
                 state_obs, img_obs = obs[0], obs[1]
 
                 ep_rews.append(rew)
@@ -139,7 +140,7 @@ class PPO:
             
             batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs = self.randomize(batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs)
             # losses = defaultdict(list)
-            for i in range(self.n_updates_per_iteration):
+            for i in range(self.epochs):
                 for k in range(0, batch_rtgs.shape[0], self.minibatch_size):
 
                     obs_state = batch_obs_state[k : k + self.minibatch_size]
