@@ -37,7 +37,7 @@ class PushNavEnv(gym.Env):
         # Compute reward as L2 change in distance to goal
         dist_to_goal = math.sqrt(((car_ob[0] - self.goal[0]) ** 2 +
                                   (car_ob[1] - self.goal[1]) ** 2))
-        reward = 100*max(self.prev_dist_to_goal - dist_to_goal, 0)
+        reward = max(self.prev_dist_to_goal - dist_to_goal, 0)
         self.prev_dist_to_goal = dist_to_goal
 
         return reward, dist_to_goal
@@ -45,11 +45,10 @@ class PushNavEnv(gym.Env):
     def visibility_reward(self):
         h, w = self.car.segmask.shape[:2]
         viz_pixels = np.array(self.car.segmask == self.goalID, dtype=np.int32).sum()
-        return  2*viz_pixels/(h*w)
-        # return int(self.goalID in self.car.segmask)
+        return  viz_pixels/(h*w)
 
     def push_penalty(self):
-        return -0.001 * self.car.head_force**0.5
+        return -self.car.head_force**0.3
 
     def step(self, action):
         # Feed action to the car and get observation of car's state
