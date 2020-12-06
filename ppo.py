@@ -31,7 +31,7 @@ class PPO:
         self.timesteps_per_batch = 2000
         self.max_timesteps_per_episode = 1000
         self.gamma = 0.95
-        self.n_updates_per_iteration = 10
+        self.n_updates_per_iteration = 5
         self.clip = 0.2
         self.entropy_beta = 0.01
         self.minibatch_size = 256
@@ -137,52 +137,60 @@ class PPO:
 
             t_so_far += np.sum(batch_lens)
             
-            batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs = self.get_minibatch(batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs)
-            V, _ = self.evaluate(batch_obs_state, batch_obs_img, batch_acts)
-
-            A_k = batch_rtgs - V.detach()
-            del V
-
-            # normalize advantages
-            A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
-
-            losses = defaultdict(list)
+            batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs = self.randomize(batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs)
+            # losses = defaultdict(list)
             for i in range(self.n_updates_per_iteration):
-                V, curr_log_probs = self.evaluate(batch_obs_state, batch_obs_img, batch_acts)
+                for k in range(0, batch_rtgs.shape[0], self.minibatch_size):
 
-                ratios = torch.exp(curr_log_probs - batch_log_probs)
+                    obs_state = batch_obs_state[k : k + self.minibatch_size]
+                    obs_img = batch_obs_img[k : k + self.minibatch_size]
+                    acts = batch_acts[k : k + self.minibatch_size]
+                    rtgs = batch_rtgs[k : k + self.minibatch_size]
+                    log_probs = batch_log_probs[k : k + self.minibatch_size]
 
-                # surrogate losses
-                surr1 = ratios * A_k
-                surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
+                    V, _ = self.evaluate(obs_state, obs_img, acts)
 
-                entropy = self.entropy_beta * (-(torch.exp(curr_log_probs) * curr_log_probs)).mean()
+                    A_k = rtgs - V.detach()
+                    del V
 
-                actor_loss = (-torch.min(surr1, surr2)).mean() - entropy
-                critic_loss = torch.nn.MSELoss()(V, batch_rtgs)
+                    # normalize advantages
+                    A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
 
-                self.actor_optim.zero_grad()
-                actor_loss.backward(retain_graph=True)
-                self.actor_optim.step()
+                    V, curr_log_probs = self.evaluate(obs_state, obs_img, acts)
 
-                self.critic_optim.zero_grad()
-                critic_loss.backward()
-                self.critic_optim.step()
+                    ratios = torch.exp(curr_log_probs - log_probs)
 
-                if self.use_wandb:
-                    losses['actor_loss'].append(actor_loss.item())
-                    losses['critic_loss'].append(critic_loss.item())
-                    losses['entropy'].append(entropy.item())
+                    # surrogate losses
+                    surr1 = ratios * A_k
+                    surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
 
-            if self.use_wandb:
-                for key in losses:
-                    losses[key] = np.mean(losses[key])
-                wandb.log(losses, step=itr)
+                    entropy = self.entropy_beta * (-(torch.exp(curr_log_probs) * curr_log_probs)).mean()
+
+                    actor_loss = (-torch.min(surr1, surr2)).mean() - entropy
+                    critic_loss = torch.nn.MSELoss()(V, rtgs)
+
+                    self.actor_optim.zero_grad()
+                    actor_loss.backward(retain_graph=True)
+                    self.actor_optim.step()
+
+                    self.critic_optim.zero_grad()
+                    critic_loss.backward()
+                    self.critic_optim.step()
+
+            #     if self.use_wandb:
+            #         losses['actor_loss'].append(actor_loss.item())
+            #         losses['critic_loss'].append(critic_loss.item())
+            #         losses['entropy'].append(entropy.item())
+
+            # if self.use_wandb:
+            #     for key in losses:
+            #         losses[key] = np.mean(losses[key])
+            #     wandb.log(losses, step=itr)
 
             itr += 1
 
-    def get_minibatch(self, batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs):
-        idx = np.random.randint(0, batch_rtgs.shape[0] ,self.minibatch_size)
+    def randomize(self, batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs):
+        idx = np.random.randint(0, batch_rtgs.shape[0], batch_rtgs.shape[0])
         batch_obs_state = batch_obs_state[idx]
         batch_obs_img = batch_obs_img[idx]
         batch_acts = batch_acts[idx]
