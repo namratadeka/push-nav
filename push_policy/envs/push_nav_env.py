@@ -89,10 +89,8 @@ class PushNavEnv(gym.Env):
         self.car = Car(self.client)
 
         # Set the goal to a random target
-        x = (self.np_random.uniform(2, 4) if self.np_random.randint(2) else
-             self.np_random.uniform(-2, -4))
-        y = (self.np_random.uniform(2, 4) if self.np_random.randint(2) else
-             self.np_random.uniform(-2, -4))
+        x = self.np_random.uniform(2, 4)
+        y = self.np_random.uniform(-4, 4)
         self.goal = (x, y)
 
         # Visual element of the goal
