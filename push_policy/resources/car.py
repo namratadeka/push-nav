@@ -48,6 +48,7 @@ class Car:
         acceleration = self.c_throttle * throttle + friction
         # Each time step is 1/240 of a second
         self.joint_speed = self.joint_speed + 1/30 * acceleration
+        self.joint_speed = max(-1, self.joint_speed)
 
         # Set the velocity of the wheel joints directly
         p.setJointMotorControlArray(
@@ -73,7 +74,7 @@ class Car:
         up_vec = np.matmul(rot_mat, np.array([0, 0, 1]))
         view_matrix = p.computeViewMatrix(pos, pos + camera_vec, up_vec)
 
-        w, h, rgb, depth, self.segmask = p.getCameraImage(100, 100, view_matrix, proj_matrix)
+        w, h, rgb, depth, self.segmask = p.getCameraImage(84, 84, view_matrix, proj_matrix)
         rgb = rgb[:, :, :-1] / 255.
         rgbd = np.concatenate([rgb, np.expand_dims(depth, 2)], axis=2)
 
