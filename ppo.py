@@ -28,12 +28,13 @@ class PPO:
         self.critic_optim = torch.optim.SGD(self.critic.parameters(), lr=0.01, momentum=0.9)
 
     def _init_hyperparameters(self):
-        self.timesteps_per_batch = 500
-        self.max_timesteps_per_episode = 256
+        self.timesteps_per_batch = 2000
+        self.max_timesteps_per_episode = 1000
         self.gamma = 0.95
         self.n_updates_per_iteration = 10
         self.clip = 0.2
         self.entropy_beta = 0.01
+        self.minibatch_size = 256
 
     def get_action(self, state, img):
         mean = self.actor(state, img).squeeze()
@@ -135,7 +136,8 @@ class PPO:
                 wandb.log(avg_info, step=itr)
 
             t_so_far += np.sum(batch_lens)
-
+            
+            batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs = self.get_minibatch(batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs)
             V, _ = self.evaluate(batch_obs_state, batch_obs_img, batch_acts)
 
             A_k = batch_rtgs - V.detach()
@@ -179,6 +181,15 @@ class PPO:
 
             itr += 1
 
+    def get_minibatch(self, batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs):
+        idx = np.random.randint(0, batch_rtgs.shape[0] ,self.minibatch_size)
+        batch_obs_state = batch_obs_state[idx]
+        batch_obs_img = batch_obs_img[idx]
+        batch_acts = batch_acts[idx]
+        batch_log_probs = batch_log_probs[idx]
+        batch_rtgs = batch_rtgs[idx]
+
+        return batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs
 
     def avg_reward_per_episode(self, batch_rtgs, batch_lens):
         episodic_rewards = []
