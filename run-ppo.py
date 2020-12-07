@@ -21,13 +21,13 @@ def main(cfile, render_mode, use_wandb, mode, load_path=None):
     cfg = yaml.load(open(cfile, "r"), Loader=yaml.FullLoader)
     env = gym.make('PushNav-v0', mode=render_mode)
 
-    agent = PPO(env, cfg['network'], use_wandb)
+    agent = PPO(env, cfg['network'], use_wandb, outdir='/data/namrata/models/push-nav')
     if load_path is not None:
         agent.load_model(load_path)
 
     if mode.__eq__('train'):
         agent.learn(1000000)
-        agent.save_model("agent.pth")
+        agent.save_model('final')
     else:
         ob = env.reset()
         while True:

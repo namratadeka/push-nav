@@ -1,13 +1,16 @@
+import os
 import wandb
 import torch
 import numpy as np
+from os.path import join
+from datetime import datetime
 from collections import defaultdict
 from torch.distributions import MultivariateNormal
 from push_policy.models import Actor, Critic
 
 
 class PPO:
-    def __init__(self, env, network_cfg, use_wandb):
+    def __init__(self, env, network_cfg, use_wandb, outdir):
         self.use_wandb = use_wandb
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._init_hyperparameters()
@@ -24,16 +27,20 @@ class PPO:
             wandb.watch(self.actor)
             wandb.watch(self.critic)
 
-        self.actor_optim = torch.optim.SGD(self.actor.parameters(), lr=2.5e-6, momentum=0.9)
-        self.critic_optim = torch.optim.SGD(self.critic.parameters(), lr=1e-4, momentum=0.9)
+        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=2.5e-6)
+        self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=1e-4)
+
+        self.now = datetime.now().strftime("%D-%H-%M").replace('/','-')
+        self.outdir = outdir
+        os.makedirs(join(self.outdir, self.now))
 
     def _init_hyperparameters(self):
         self.timesteps_per_batch = 2000
         self.max_timesteps_per_episode = 1000
-        self.gamma = 0.95
-        self.epochs = 1
+        self.gamma = 0.9
+        self.epochs = 4
         self.clip = 0.2
-        self.entropy_beta = 0.01
+        self.entropy_beta = 0.1
         self.minibatch_size = 256
 
     def get_action(self, state, img):
@@ -187,7 +194,8 @@ class PPO:
             #     for key in losses:
             #         losses[key] = np.mean(losses[key])
             #     wandb.log(losses, step=itr)
-
+            if itr % 100 == 0:
+                self.save_model(itr)
             itr += 1
 
     def randomize(self, batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs):
@@ -208,10 +216,13 @@ class PPO:
         
         return np.mean(episodic_rewards)
 
-    def save_model(self):
-        # TODO
-        pass
+    def save_model(self, itr):
+        torch.save({
+            'actor': self.actor.state_dict(),
+            'critic': self.critic.state_dict()
+        }, join(self.outdir, self.now, 'iteration_{}.pth'.format(itr)))
 
     def load_model(self, path):
-        # TODO
-        pass
+        checkpoint = torch.load(path)
+        self.actor.load_state_dict(checkpoint['actor'])
+        self.critic.load_state_dict(checkpoint['critic'])
