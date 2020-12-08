@@ -1,4 +1,3 @@
-import os
 import wandb
 import torch
 import numpy as np
@@ -32,7 +31,6 @@ class PPO:
 
         self.now = datetime.now().strftime("%D-%H-%M").replace('/','-')
         self.outdir = outdir
-        os.makedirs(join(self.outdir, self.now))
 
     def _init_hyperparameters(self):
         self.timesteps_per_batch = 2000
