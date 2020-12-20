@@ -5,7 +5,7 @@ from os.path import join
 from datetime import datetime
 from collections import defaultdict
 from torch.distributions import MultivariateNormal
-from push_policy.models import Actor, Critic
+from push_policy.models.actor_critic import Actor, Critic
 
 
 class PPO:
