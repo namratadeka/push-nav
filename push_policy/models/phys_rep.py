@@ -18,12 +18,18 @@ class Actor(nn.Module):
         self.motion_predictor = Network(cfg["motion_predictor"])
 
     def cross_convolve(self, input, kernels):
-        C = input.shape[1]
-        result = list()
-        for i in range(C):
-            result.append(F.conv2d(input[:, i:i+1], kernels[:, i:i+1]))
+        N, C = input.shape[0], input.shape[1]
+        kernels = kernels.unsqueeze(1)
+        input = input.unsqueeze(1)
 
-        return torch.cat(result, dim=1)
+        result = list()
+        for n in range(N):
+            subresult = list()
+            for i in range(C):
+                subresult.append(F.conv2d(input[n, :, i:i+1], kernels[n, :, i:i+1], padding=2))
+            result.append(torch.cat(subresult, dim=1))
+
+        return torch.cat(result, dim=0)
 
     def forward(self, state, image):
         if isinstance(state, np.ndarray):
@@ -44,19 +50,22 @@ class Actor(nn.Module):
         features = torch.cat([state_features, policy_features], dim=1)
         action = self.actor_fc(features)
 
-        action_features = self.action_encoder(action)
-        action_kernels = action_features.reshape(-1, 32, 5, 5)
+        return action
 
+    def predict_flow(self, images, actions):
+        phys_features = self.phys_encoder(images.permute(0, 3, 1, 2))
+        action_features = self.action_encoder(actions)
+        action_kernels = action_features.reshape(-1, 32, 5, 5)
         state_action_ft = self.cross_convolve(phys_features, action_kernels)
         flow = self.motion_predictor(state_action_ft)
 
-        return action, flow
+        return flow
 
 class Critic(nn.Module):
     def __init__(self, cfg):
         super(Critic, self).__init__()
         self.state_fc = Network(cfg["state_fc"])
-        self.policy_cnn = Network(cfg["policy_cnn"])
+        self.critic_cnn = Network(cfg["critic_cnn"])
         self.critic_fc = Network(cfg["critic_fc"])
 
     def forward(self, state, image):
@@ -72,7 +81,7 @@ class Critic(nn.Module):
         image = image.permute(0, 3, 1, 2)
 
         state_features = self.state_fc(state)
-        img_features = self.policy_cnn(image)
+        img_features = self.critic_cnn(image)
         img_features = torch.flatten(img_features, start_dim=1)
         features = torch.cat([state_features, img_features], dim=1)
         value = self.critic_fc(features)
