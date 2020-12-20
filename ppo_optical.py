@@ -1,14 +1,17 @@
 import wandb
 import torch
+torch.autograd.set_detect_anomaly(True)
 import numpy as np
 from os.path import join
 from datetime import datetime
 from collections import defaultdict
 from torch.distributions import MultivariateNormal
-from push_policy.models.actor_critic import Actor, Critic
+
+from utils import *
+from push_policy.models.phys_rep import Actor, Critic
 
 
-class PPO:
+class PPO_Opt:
     def __init__(self, env, network_cfg, use_wandb, outdir):
         self.use_wandb = use_wandb
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -33,17 +36,17 @@ class PPO:
         self.outdir = outdir
 
     def _init_hyperparameters(self):
-        self.timesteps_per_batch = 2000
-        self.max_timesteps_per_episode = 1000
+        self.timesteps_per_batch = 150
+        self.max_timesteps_per_episode = 100
         self.gamma = 0.9
         self.epochs = 4
         self.clip = 0.2
         self.entropy_beta = 0.1
-        self.minibatch_size = 256
+        self.minibatch_size = 32
 
     def get_action(self, state, img):
-        mean = self.actor(state, img).squeeze()
-        dist = MultivariateNormal(mean, self.cov_mat)
+        mean = self.actor(state, img)
+        dist = MultivariateNormal(mean.squeeze(), self.cov_mat)
 
         action = dist.sample()
         log_prob = dist.log_prob(action)
@@ -84,7 +87,7 @@ class PPO:
                 batch_obs_state.append(state_obs)
                 batch_obs_img.append(img_obs)
 
-                action, log_prob = self.get_action(state_obs, img_obs)
+                action, log_prob= self.get_action(state_obs, img_obs)
                 for k in range(4):
                     obs, rew, done, info = self.env.step(action)
                 state_obs, img_obs = obs[0], obs[1]
@@ -113,15 +116,15 @@ class PPO:
 
         batch_rtgs = self.compute_rtgs(batch_rews)
         for key in batch_info:
-            batch_info[key] = self.compute_rtgs(batch_info[key])
+            batch_info[key] = self.compute_rtgs(batch_info[key]).detach().cpu().numpy()
 
         return batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens, batch_info
 
     def evaluate(self, state, img, acts):
         V = self.critic(state, img).squeeze()
 
-        mean = self.actor(state, img).squeeze()
-        dist = MultivariateNormal(mean, self.cov_mat)
+        mean = self.actor(state, img)
+        dist = MultivariateNormal(mean.squeeze(), self.cov_mat)
         log_probs = dist.log_prob(acts)
 
         return V, log_probs
@@ -132,7 +135,7 @@ class PPO:
         while t_so_far < total_timesteps:
             batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, batch_lens, batch_info = self.rollout()
 
-            avg_rew = self.avg_reward_per_episode(batch_rtgs, batch_lens)
+            avg_rew = self.avg_reward_per_episode(batch_rtgs.detach().cpu().numpy(), batch_lens)
             avg_info = dict()
             for key in batch_info:
                 avg_info[key] = self.avg_reward_per_episode(batch_info[key], batch_lens)
@@ -140,10 +143,14 @@ class PPO:
             if self.use_wandb:
                 wandb.log({"Average episodic reward": avg_rew}, step=itr)
                 wandb.log(avg_info, step=itr)
+            del batch_info
 
             t_so_far += np.sum(batch_lens)
-            
-            batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs = self.randomize(batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs)
+
+            gt_flows, flow_weights = batch_optical_flow(batch_obs_img.clone(), batch_lens)
+
+            batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, gt_flows, flow_weights = \
+                            self.randomize(batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, gt_flows, flow_weights)
             # losses = defaultdict(list)
             for i in range(self.epochs):
                 for k in range(0, batch_rtgs.shape[0], self.minibatch_size):
@@ -153,6 +160,8 @@ class PPO:
                     acts = batch_acts[k : k + self.minibatch_size]
                     rtgs = batch_rtgs[k : k + self.minibatch_size]
                     log_probs = batch_log_probs[k : k + self.minibatch_size]
+                    gt_flow = gt_flows[k : k + self.minibatch_size]
+                    flow_wt = flow_weights[k : k + self.minibatch_size]
 
                     V, _ = self.evaluate(obs_state, obs_img, acts)
 
@@ -172,7 +181,11 @@ class PPO:
 
                     entropy = self.entropy_beta * (-(torch.exp(curr_log_probs) * curr_log_probs)).mean()
 
-                    actor_loss = (-torch.min(surr1, surr2)).mean() - entropy
+                    pred_flow = self.actor.predict_flow(obs_img, acts)
+
+                    flow_loss = optical_flow_loss(gt_flow, pred_flow, flow_wt)
+
+                    actor_loss = (-torch.min(surr1, surr2)).mean() - entropy + flow_loss
                     critic_loss = torch.nn.MSELoss()(V, rtgs)
 
                     self.actor_optim.zero_grad()
@@ -196,21 +209,23 @@ class PPO:
                 self.save_model(itr)
             itr += 1
 
-    def randomize(self, batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs):
+    def randomize(self, batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, gt_flows, flow_weights):
         idx = np.random.randint(0, batch_rtgs.shape[0], batch_rtgs.shape[0])
         batch_obs_state = batch_obs_state[idx]
         batch_obs_img = batch_obs_img[idx]
         batch_acts = batch_acts[idx]
         batch_log_probs = batch_log_probs[idx]
         batch_rtgs = batch_rtgs[idx]
+        gt_flows = gt_flows[idx]
+        flow_weights = flow_weights[idx]
 
-        return batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs
+        return batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, gt_flows, flow_weights
 
     def avg_reward_per_episode(self, batch_rtgs, batch_lens):
         episodic_rewards = []
         for i, ep_len in enumerate(batch_lens):
             total_time_so_far = int(np.sum(batch_lens[:i]))
-            episodic_rewards.append(batch_rtgs[total_time_so_far:total_time_so_far+ep_len].sum().item())
+            episodic_rewards.append(batch_rtgs[total_time_so_far:total_time_so_far+ep_len].sum())
         
         return np.mean(episodic_rewards)
 
