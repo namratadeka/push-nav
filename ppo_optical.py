@@ -2,6 +2,7 @@ import wandb
 import torch
 torch.autograd.set_detect_anomaly(True)
 import numpy as np
+from tqdm import tqdm
 from os.path import join
 from datetime import datetime
 from collections import defaultdict
@@ -36,13 +37,13 @@ class PPO_Opt:
         self.outdir = outdir
 
     def _init_hyperparameters(self):
-        self.timesteps_per_batch = 150
-        self.max_timesteps_per_episode = 100
+        self.timesteps_per_batch = 700
+        self.max_timesteps_per_episode = 500
         self.gamma = 0.9
         self.epochs = 4
         self.clip = 0.2
         self.entropy_beta = 0.1
-        self.minibatch_size = 32
+        self.minibatch_size = 128
 
     def get_action(self, state, img):
         mean = self.actor(state, img)
@@ -151,8 +152,8 @@ class PPO_Opt:
 
             batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, gt_flows, flow_weights = \
                             self.randomize(batch_obs_state, batch_obs_img, batch_acts, batch_log_probs, batch_rtgs, gt_flows, flow_weights)
-            # losses = defaultdict(list)
-            for i in range(self.epochs):
+            losses = defaultdict(list)
+            for i in tqdm(range(self.epochs)):
                 for k in range(0, batch_rtgs.shape[0], self.minibatch_size):
 
                     obs_state = batch_obs_state[k : k + self.minibatch_size]
@@ -196,15 +197,16 @@ class PPO_Opt:
                     critic_loss.backward()
                     self.critic_optim.step()
 
-            #     if self.use_wandb:
-            #         losses['actor_loss'].append(actor_loss.item())
-            #         losses['critic_loss'].append(critic_loss.item())
-            #         losses['entropy'].append(entropy.item())
+                    if self.use_wandb:
+                        losses['actor_loss'].append(actor_loss.item())
+                        losses['critic_loss'].append(critic_loss.item())
+                        losses['entropy'].append(entropy.item())
+                        losses['optical_flow'].append(flow_loss.item())
 
-            # if self.use_wandb:
-            #     for key in losses:
-            #         losses[key] = np.mean(losses[key])
-            #     wandb.log(losses, step=itr)
+            if self.use_wandb:
+                for key in losses:
+                    losses[key] = np.mean(losses[key])
+                wandb.log(losses, step=itr)
             if itr % 100 == 0:
                 self.save_model(itr)
             itr += 1

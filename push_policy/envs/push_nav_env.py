@@ -94,11 +94,11 @@ class PushNavEnv(gym.Env):
         self.goal = (x, y)
 
         # Visual element of the goal
-        goal = Goal(self.client, self.goal)
+        goal = Goal(self.client, self.goal, test=False)
         self.goalID = goal.id
 
         # Reset obstacles
-        Obstacles(self.client)
+        Obstacles(self.client, test=False)
         p.stepSimulation()
         time.sleep(0.1)
 

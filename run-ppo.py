@@ -6,7 +6,8 @@ import time
 import yaml
 import argparse
 import pybullet as p
-from os.path import join, splitext
+import numpy as np
+from os.path import join, splitext, basename
 
 import push_policy
 from ppo import PPO
@@ -31,15 +32,27 @@ def main(cfile, render_mode, use_wandb, mode, load_path=None):
         agent.learn(10000000)
         agent.save_model('final')
     else:
+        i=0
+        rewards = list()
+        images = list()
         ob = env.reset()
-        while True:
+        ep_rewards = list()
+        ep_imgs = list()
+        while i<10:            
             state, cam = ob
             action, _ = agent.get_action(state, cam)
             for k in range(4):
-                ob, _, done, _ = env.step(action)
+                ob, reward, done, _ = env.step(action)
+            ep_rewards.append(reward)
+            ep_imgs.append(ob[1])
             if done:
                 ob = env.reset()
                 time.sleep(1/30)
+                rewards.append(np.sum(ep_rewards))
+                images.append(ep_imgs)
+                ep_rewards = list()
+                i += 1
+        np.save("{}.npy".format(splitext(basename(cfile))[0]), {"rewards":rewards, "rgbd": images})
 
 
 if __name__ == '__main__':
